@@ -4,5 +4,5 @@ Pillow
 scikit-learn
 requests
 gunicorn
-huggingface_hub
 transformers
+huggingface_hub
