@@ -436,15 +436,21 @@ document.addEventListener("DOMContentLoaded", () => {
             loading.textContent =
                 "Please wait while the AI analyzes your image. The first scan may take longer.";
             scannerResult.appendChild(loading);
-
-            try {
-                const response = await fetch("/scan", {
+            try{
+               const response = await fetch("/scan", {
                     method: "POST",
                     body: formData
                 });
+                const text = await response.text();
 
-                const data = await response.json();
+                let data;
 
+                try {
+                        data = JSON.parse(text);
+                } catch (error) {
+                    console.error("Invalid server response:", text);
+                    throw new Error("The server returned an empty or invalid response.");
+                }
                 if (!response.ok) {
                     throw new Error(data.error || "Image analysis failed.");
                 }
