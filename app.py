@@ -341,11 +341,11 @@ def predict():
         # Save the prediction when the database supports it.
         try:
             database.save_prediction(
-                vegetation,
-                rainfall,
-                soil_quality,
-                human_activity,
-                prediction
+                risk=prediction,
+                vegetation=vegetation,
+                rainfall=rainfall,
+                soil_quality=soil_quality,
+                human_activity=human_activity
             )
         except Exception:
             app.logger.exception(
@@ -557,34 +557,17 @@ def scan():
 
 @app.route("/dashboard-stats", methods=["GET"])
 def dashboard_stats():
-    """
-    Return dashboard data.
-
-    Update the database function name here if your database.py
-    uses a different name for retrieving statistics.
-    """
     try:
-        if hasattr(database, "get_dashboard_stats"):
-            stats = database.get_dashboard_stats()
-            return jsonify(stats)
-
-        if hasattr(database, "dashboard_stats"):
-            stats = database.dashboard_stats()
-            return jsonify(stats)
-
+        stats = database.get_dashboard_stats()
         return jsonify({
             "success": True,
-            "predictions": 0,
-            "scans": 0,
-            "eco_actions": 0,
-            "note": (
-                "Dashboard statistics are not connected to a "
-                "retrieval function in database.py yet."
-            )
+            **stats
         })
 
     except Exception:
-        app.logger.exception("Dashboard statistics could not be loaded.")
+        app.logger.exception(
+            "Dashboard statistics could not be loaded."
+        )
         return jsonify({
             "success": False,
             "error": "Could not load dashboard statistics."
