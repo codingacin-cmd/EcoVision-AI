@@ -5,4 +5,5 @@ scikit-learn
 requests
 gunicorn
 transformers
+torch
 huggingface_hub
