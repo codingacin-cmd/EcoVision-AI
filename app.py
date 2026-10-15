@@ -29,7 +29,7 @@ logging.basicConfig(level=logging.INFO)
 app.logger.setLevel(logging.INFO)
 
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
-DEVICE = torch.device("cpu")
+DEVICE = "cpu"
 
 PLACES_MODEL_URL = (
     "https://places2.csail.mit.edu/models_places365/"
