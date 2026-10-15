@@ -4,11 +4,9 @@ from pathlib import Path
 
 import numpy as np
 import requests
-import torch
 from PIL import Image, UnidentifiedImageError
 from flask import Flask, render_template, request, jsonify, url_for
 from sklearn.ensemble import RandomForestClassifier
-from torchvision import models, transforms
 
 import database
 
@@ -100,6 +98,8 @@ def download_file(url, destination):
 
 def load_scene_model():
     """Load the Places365 ResNet18 scene-recognition model."""
+    import torch
+    from torchvision import models
     global scene_model, scene_labels
 
     if scene_model is not None and scene_labels is not None:
@@ -158,6 +158,8 @@ def load_scene_model():
     app.logger.info("Places365 model loaded successfully.")
 
 
+from torchvision import transforms
+
 image_transform = transforms.Compose([
     transforms.Resize(256),
     transforms.CenterCrop(224),
@@ -167,7 +169,6 @@ image_transform = transforms.Compose([
         std=[0.229, 0.224, 0.225],
     ),
 ])
-
 
 def format_scene_label(label):
     """Convert a Places365 path-like label into a readable name."""
@@ -242,6 +243,7 @@ def get_nature_tip(category):
 
 
 def predict_scene(image_path):
+    import torch
     """Run scene recognition and return the top predictions."""
     load_scene_model()
 
