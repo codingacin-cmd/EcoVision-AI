@@ -3,6 +3,5 @@ numpy
 Pillow
 scikit-learn
 requests
-torch
-torchvision
 gunicorn
+huggingface_hub
