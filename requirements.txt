@@ -1,0 +1,7 @@
+Flask
+numpy
+Pillow
+scikit-learn
+requests
+torch
+torchvision
