@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="EcoVision AI helps protect forests, monitor land health, and support sustainable ecosystems using artificial intelligence.">
+
+    <title>EcoVision AI | Smart Nature Guardian</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+<!-- NAVIGATION -->
+<header class="navbar">
+    <a href="#home" class="brand">
+        <span class="brand-icon">✳</span>
+        <span>EcoVision<span class="brand-highlight"> AI</span></span>
+    </a>
+
+    <nav class="nav-links">
+        <a href="#home" class="active">Home</a>
+        <a href="#features">Features</a>
+        <a href="#predictor">Land Predictor</a>
+        <a href="#ecobot">EcoBot</a>
+        <a href="#scanner">Nature Scanner</a>
+        <a href="#about">About SDG 15</a>
+    </nav>
+
+    <a href="#features" class="nav-button">
+        Explore Platform <span>↗</span>
+    </a>
+</header>
+
+<main>
+
+    <!-- HERO SECTION -->
+    <section class="hero" id="home">
+        <div class="hero-content">
+
+            <div class="eyebrow">
+                <span class="status-dot"></span>
+                TECHNOLOGY FOR A GREENER PLANET
+            </div>
+
+            <h1>
+                Protecting nature.<br>
+                <span>Powered by intelligence.</span>
+            </h1>
+
+            <p class="hero-description">
+                Discover a smarter way to protect our forests,
+                understand land health, and build a sustainable
+                future with artificial intelligence.
+            </p>
+
+            <div class="hero-actions">
+                <a href="#features" class="primary-button">
+                    Explore EcoVision <span>→</span>
+                </a>
+
+                <a href="#about" class="secondary-button">
+                    Discover our mission
+                </a>
+            </div>
+
+            <div class="hero-trust">
+                <div class="trust-icon">🌱</div>
+                <div>
+                    <strong>One planet. One shared responsibility.</strong>
+                    <span>Inspired by United Nations Sustainable Development Goal 15</span>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="hero-visual">
+            <div class="visual-glow"></div>
+
+            <div class="forest-image">
+                <div class="image-label">
+                    <span class="live-dot"></span>
+                    NATURE INTELLIGENCE
+                </div>
+
+                <div class="image-caption">
+                    <span>OUR PLANET, OUR FUTURE</span>
+                    <h2>Every living thing<br>deserves a future.</h2>
+                </div>
+            </div>
+
+            <div class="floating-card floating-top">
+                <span class="floating-icon">🌿</span>
+                <div>
+                    <strong>Land health</strong>
+                    <span>Understand ecosystems</span>
+                </div>
+            </div>
+
+            <div class="floating-card floating-bottom">
+                <span class="floating-icon">✦</span>
+                <div>
+                    <strong>AI-powered insights</strong>
+                    <span>Turn data into action</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- SDG 15 SECTION -->
+    <section class="mission-strip" id="about">
+        <div class="mission-number">15</div>
+
+        <div class="mission-text">
+            <span>UNITED NATIONS SUSTAINABLE DEVELOPMENT GOALS</span>
+            <h2>Life on Land</h2>
+            <p>
+                Protect, restore and promote sustainable use
+                of terrestrial ecosystems.
+            </p>
+        </div>
+
+        <a href="https://sdgs.un.org/goals/goal15"
+           target="_blank"
+           rel="noopener noreferrer"
+           class="mission-link">
+            Learn about SDG 15 <span>↗</span>
+        </a>
+    </section>
+
+
+    <!-- FEATURES SECTION -->
+    <section class="features-section" id="features">
+
+        <div class="section-heading">
+            <div>
+                <span class="section-kicker">THE ECOVISION TOOLKIT</span>
+                <h2>Small insights. <span>Lasting impact.</span></h2>
+                <p>
+                    Explore tools designed to help us understand
+                    and protect the natural world.
+                </p>
+            </div>
+
+            <div class="section-count">01 — 04</div>
+        </div>
+
+        <div class="feature-grid">
+
+            <article class="feature-card">
+                <div class="feature-icon green-icon">⌁</div>
+                <span class="card-label">MACHINE LEARNING</span>
+                <h3>Land Risk Predictor</h3>
+                <p>
+                    Explore how vegetation, rainfall, soil quality,
+                    and human activity relate to land degradation risk.
+                </p>
+                <button type="button" class="text-button"
+                        data-target="predictor">
+                    Explore predictor <span>→</span>
+                </button>
+            </article>
+
+            <article class="feature-card">
+                <div class="feature-icon yellow-icon">✳</div>
+                <span class="card-label">ENVIRONMENTAL CHATBOT</span>
+                <h3>Ask EcoBot</h3>
+                <p>
+                    Learn about biodiversity, deforestation,
+                    wildlife protection, and sustainable land management.
+                </p>
+                <button type="button" class="text-button"
+                        data-target="ecobot">
+                    Meet EcoBot <span>→</span>
+                </button>
+            </article>
+
+            <article class="feature-card">
+                <div class="feature-icon blue-icon">◉</div>
+                <span class="card-label">AI IMAGE CLASSIFICATION</span>
+                <h3>Nature Scanner</h3>
+                <p>
+                    Upload a nature photograph and explore an AI prediction,
+                    confidence score, and conservation tip.
+                </p>
+                <button type="button" class="text-button"
+                        data-target="scanner">
+                    Explore scanner <span>→</span>
+                </button>
+            </article>
+
+            <article class="feature-card">
+                <div class="feature-icon purple-icon">↗</div>
+                <span class="card-label">ENVIRONMENTAL AWARENESS</span>
+                <h3>Impact Dashboard</h3>
+                <p>
+                    Discover environmental indicators and practical ways
+                    to support healthier ecosystems.
+                </p>
+                <button type="button" class="text-button"
+                        data-target="dashboard">
+                    View dashboard <span>→</span>
+                </button>
+            </article>
+
+        </div>
+    </section>
+
+
+    <!-- LAND RISK PREDICTOR -->
+    <section class="predictor-section" id="predictor">
+
+        <div class="section-heading">
+            <div>
+                <span class="section-kicker">MACHINE LEARNING LAB</span>
+                <h2>Understand your land's <span>risk profile.</span></h2>
+                <p>
+                    Adjust the indicators to explore a sample
+                    machine-learning prediction.
+                </p>
+            </div>
+        </div>
+
+        <div class="predictor-layout">
+
+            <form id="predictorForm" class="predictor-form">
+
+                <div class="field-group">
+                    <label for="vegetation">
+                        Vegetation health
+                        <span><span id="vegetationValue">70</span>/100</span>
+                    </label>
+                    <input type="range" id="vegetation"
+                           min="0" max="100" value="70">
+                    <div class="range-labels">
+                        <span>Low</span><span>Healthy</span>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <label for="rainfall">
+                        Rainfall availability
+                        <span><span id="rainfallValue">65</span>/100</span>
+                    </label>
+                    <input type="range" id="rainfall"
+                           min="0" max="100" value="65">
+                    <div class="range-labels">
+                        <span>Low</span><span>High</span>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <label for="soil_quality">
+                        Soil quality
+                        <span><span id="soil_qualityValue">70</span>/100</span>
+                    </label>
+                    <input type="range" id="soil_quality"
+                           min="0" max="100" value="70">
+                    <div class="range-labels">
+                        <span>Poor</span><span>Healthy</span>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <label for="human_activity">
+                        Human activity
+                        <span><span id="human_activityValue">30</span>/100</span>
+                    </label>
+                    <input type="range" id="human_activity"
+                           min="0" max="100" value="30">
+                    <div class="range-labels">
+                        <span>Low</span><span>High</span>
+                    </div>
+                </div>
+
+                <button type="submit"
+                        class="primary-button predictor-submit">
+                    Analyze Land Risk <span>→</span>
+                </button>
+
+            </form>
+
+            <div class="prediction-result"
+                 id="predictionResult"
+                 aria-live="polite">
+
+                <div class="result-icon">🌿</div>
+                <span class="card-label">YOUR ANALYSIS</span>
+                <h3>Ready to explore?</h3>
+                <p>
+                    Adjust the indicators and analyze them to receive
+                    a sample machine-learning prediction.
+                </p>
+                <div class="result-divider"></div>
+                <span class="result-footnote">
+                    Demo model · Illustrative training data
+                </span>
+
+            </div>
+
+        </div>
+
+        <p class="predictor-disclaimer">
+            Note: This educational prototype uses illustrative training
+            data. It is not a scientifically validated environmental assessment.
+        </p>
+    </section>
+
+
+    <!-- ECOBOT CHATBOT -->
+    <section class="ecobot-section" id="ecobot">
+
+        <div class="section-heading">
+            <div>
+                <span class="section-kicker">YOUR GREEN AI ASSISTANT</span>
+                <h2>Meet EcoBot 🌿</h2>
+                <p>
+                    Ask questions and discover simple ways
+                    to protect our planet.
+                </p>
+            </div>
+        </div>
+
+        <div class="ecobot-card">
+
+            <div class="ecobot-header">
+                <div class="ecobot-avatar">🌎</div>
+
+                <div>
+                    <h3>EcoBot</h3>
+                    <p>Environmental Assistant</p>
+                </div>
+
+                <span class="ecobot-status">● Ready</span>
+            </div>
+
+            <div class="chat-messages"
+                 id="chatMessages"
+                 aria-live="polite">
+
+                <div class="chat-message bot-message">
+                    Hello! 🌱 I'm EcoBot. Ask me about forests,
+                    wildlife, pollution, biodiversity, or SDG 15!
+                </div>
+            </div>
+
+            <div class="chat-suggestions">
+                <button type="button" class="chat-suggestion">
+                    How can I save forests?
+                </button>
+
+                <button type="button" class="chat-suggestion">
+                    Why is biodiversity important?
+                </button>
+            </div>
+
+            <form id="chatForm" class="chat-form">
+                <input
+                    type="text"
+                    id="chatInput"
+                    name="message"
+                    placeholder="Ask EcoBot a question..."
+                    aria-label="Ask EcoBot a question"
+                    maxlength="500"
+                    autocomplete="off"
+                    required
+                >
+
+                <button type="submit" id="chatSend">Send ➤</button>
+            </form>
+
+            <p class="chat-disclaimer">
+                EcoBot provides educational information.
+            </p>
+
+        </div>
+    </section>
+
+
+    <!-- NATURE SCANNER -->
+    <section class="scanner-section" id="scanner">
+
+        <div class="section-heading">
+            <div>
+                <span class="section-kicker">AI-POWERED IMAGE ANALYSIS</span>
+                <h2>Nature Scanner <span>🌿</span></h2>
+                <p>
+                    Upload a nature photograph and let AI classify
+                    the image. Explore biodiversity and learn how
+                    to protect our planet.
+                </p>
+            </div>
+        </div>
+
+        <div class="scanner-card">
+
+            <form id="scannerForm" enctype="multipart/form-data">
+
+                <label for="natureImage" class="upload-area">
+                    <span class="upload-icon">📸</span>
+                    <strong>Choose a nature image</strong>
+                    <span>JPG, PNG or WEBP · Maximum 5 MB</span>
+
+                    <input
+                        type="file"
+                        id="natureImage"
+                        name="image"
+                        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                        required
+                    >
+                </label>
+
+                <div class="scanner-preview" id="scannerPreview" hidden>
+                    <img
+                        id="previewImage"
+                        src=""
+                        alt="Preview of selected nature image"
+                    >
+                </div>
+
+                <button type="submit"
+                        class="scanner-button"
+                        id="scanButton">
+                    🌱 Analyze Image
+                </button>
+
+            </form>
+
+            <div
+                id="scannerResult"
+                class="scanner-result"
+                aria-live="polite"
+                hidden>
+            </div>
+
+        </div>
+
+        <p class="predictor-disclaimer">
+            Image classifications are predictions, not confirmed
+            scientific species identifications.
+        </p>
+
+    </section>
+
+
+    <!-- IMPACT DASHBOARD PLACEHOLDER -->
+
+    <section class="dashboard-section" id="dashboard">
+        <div class="section-heading">
+            <span class="section-tag">YOUR IMPACT</span>
+            <h2>Environmental Dashboard</h2>
+            <p>Explore your nature scans and environmental risk insights.</p>
+        </div>
+
+        <div class="dashboard-stats">
+            <div class="dashboard-stat">
+                <div class="stat-icon">📸</div>
+                <p>Total Nature Scans</p>
+                <h3 id="totalScans">0</h3>
+                <span>Images analyzed</span>
+            </div>
+
+            <div class="dashboard-stat">
+                <div class="stat-icon">🌿</div>
+                <p>Nature Categories</p>
+                <h3 id="natureCategories">0</h3>
+                <span>Categories explored</span>
+            </div>
+
+            <div class="dashboard-stat">
+                <div class="stat-icon">⚠️</div>
+                <p>High Risk Predictions</p>
+                <h3 id="highRiskCount">0</h3>
+                <span>High-risk results</span>
+            </div>
+
+            <div class="dashboard-stat">
+                <div class="stat-icon">💚</div>
+                <p>Eco Actions</p>
+                <h3 id="ecoActions">0</h3>
+                <span>Tips viewed</span>
+            </div>
+        </div>
+
+        <div class="dashboard-panels">
+             <div class="dashboard-panel">
+                 <h3>Environmental Risk Overview</h3>
+                 <p class="panel-description">
+                    Risk predictions made during this session
+                </p>
+
+                <div class="risk-bar-item">
+                    <div class="risk-bar-label">
+                        <span>Low Risk</span>
+                        <strong id="lowRiskLabel">0</strong>
+                    </div>
+                    <div class="risk-track">
+                        <div class="risk-fill low-fill" id="lowRiskBar"></div>
+                    </div>
+                </div>
+
+                <div class="risk-bar-item">
+                    <div class="risk-bar-label">
+                        <span>Medium Risk</span>
+                        <strong id="mediumRiskLabel">0</strong>
+                    </div>
+                    <div class="risk-track">
+                        <div class="risk-fill medium-fill" id="mediumRiskBar"></div>
+                    </div>
+                </div>
+
+                <div class="risk-bar-item">
+                    <div class="risk-bar-label">
+                        <span>High Risk</span>
+                        <strong id="highRiskLabel">0</strong>
+                    </div>
+                    <div class="risk-track">
+                         <div class="risk-fill high-fill" id="highRiskBar"></div>
+                    </div>
+                </div>
+             </div>
+
+            <div class="dashboard-panel eco-tip-panel">
+                <div class="stat-icon">🌎</div>
+                <h3>Eco Tip of the Day</h3>
+                <p id="dashboardEcoTip">
+                    Protect local trees, reduce waste, and keep natural habitats clean.
+                </p>
+                <button type="button" class="dashboard-tip-button"
+                     id="newEcoTip">
+                    Get Another Tip ↗
+                </button>
+            </div>
+        </div>
+
+        <div class="dashboard-panel recent-scans-panel">
+            <h3>Recent Nature Scans</h3>
+            <p class="panel-description">
+                Images analyzed during this browser session
+            </p>
+            <div id="recentScans">
+                <p class="dashboard-empty">
+                    No scans yet. Visit the Nature Scanner to analyze an image!
+                </p>
+            </div>
+        </div>
+    </section>
+
+
+
+    <!-- BOTTOM BANNER -->
+    <section class="bottom-banner">
+        <div class="banner-symbol">🌎</div>
+
+        <div>
+            <span>THE FUTURE IS IN OUR HANDS</span>
+            <h2>Better technology. A healthier planet.</h2>
+            <p>
+                Understand the challenge. Discover the possibilities.
+                Take action for nature.
+            </p>
+        </div>
+
+        <a href="#predictor" class="banner-button">
+            Try the predictor →
+        </a>
+    </section>
+
+</main>
+
+
+<!-- FOOTER -->
+<footer class="footer">
+
+    <a href="#home" class="brand footer-brand">
+        <span class="brand-icon">✳</span>
+        <span>EcoVision<span class="brand-highlight"> AI</span></span>
+    </a>
+
+    <p>
+        Built for a greener tomorrow · Inspired by UN Sustainable
+        Development Goal 15
+    </p>
+
+    <span class="footer-tag">SMART NATURE GUARDIAN</span>
+
+</footer>
+
+
+<!-- LOAD JAVASCRIPT ONCE -->
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+</body>
+</html>
