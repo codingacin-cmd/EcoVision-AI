@@ -1,9 +1,10 @@
+
 import logging
+import os
 import uuid
 from pathlib import Path
 
 import numpy as np
-import requests
 from PIL import Image, UnidentifiedImageError
 from flask import Flask, render_template, request, jsonify, url_for
 from sklearn.ensemble import RandomForestClassifier
@@ -11,199 +12,118 @@ from sklearn.ensemble import RandomForestClassifier
 import database
 
 
-# ==================================================
-# 1. FLASK CONFIGURATION
-# ==================================================
+# --------------------------------------------------
+# APP CONFIGURATION
+# --------------------------------------------------
 
 BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_FOLDER = BASE_DIR / "static" / "uploads"
-MODEL_CACHE = BASE_DIR / "model_cache"
 
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
-MODEL_CACHE.mkdir(parents=True, exist_ok=True)
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # 5 MB
+app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
 
 logging.basicConfig(level=logging.INFO)
 app.logger.setLevel(logging.INFO)
 
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
-DEVICE = "cpu"
-
-PLACES_MODEL_URL = (
-    "https://places2.csail.mit.edu/models_places365/"
-    "resnet18_places365.pth.tar"
-)
-PLACES_LABELS_URL = (
-    "https://raw.githubusercontent.com/CSAILVision/places365/"
-    "master/categories_places365.txt"
-)
-
-MODEL_PATH = MODEL_CACHE / "resnet18_places365.pth.tar"
-LABELS_PATH = MODEL_CACHE / "categories_places365.txt"
-
-scene_model = None
-scene_labels = None
 
 
-# ==================================================
-# 2. LAND RISK PREDICTION MODEL
-# ==================================================
-# Educational demonstration model trained on synthetic examples.
-# It is not a scientifically validated environmental assessment.
+# --------------------------------------------------
+# LAND RISK PREDICTION MODEL
+# Demonstration model using illustrative training data
+# --------------------------------------------------
 
 X_TRAIN = np.array([
-    [90, 85, 90, 10],
-    [80, 75, 85, 20],
-    [75, 80, 75, 15],
-    [65, 65, 70, 30],
-    [60, 55, 60, 45],
-    [55, 60, 55, 50],
-    [45, 50, 50, 60],
-    [40, 35, 45, 70],
-    [30, 40, 35, 80],
-    [20, 25, 30, 90],
-    [25, 20, 20, 85],
-    [15, 30, 25, 95],
+    [85, 80, 90, 15],
+    [75, 70, 80, 25],
+    [65, 60, 70, 35],
+    [55, 50, 60, 45],
+    [45, 40, 50, 55],
+    [35, 30, 40, 65],
+    [25, 20, 30, 75],
+    [15, 15, 20, 90],
+    [90, 40, 75, 20],
+    [30, 80, 45, 70],
+    [70, 25, 55, 60],
+    [40, 60, 35, 80],
+    [80, 85, 85, 10],
+    [20, 25, 25, 85],
+    [60, 75, 65, 30],
+    [50, 45, 45, 60],
 ], dtype=float)
 
 Y_TRAIN = np.array([
-    "Low", "Low", "Low", "Low",
-    "Medium", "Medium", "Medium", "Medium",
-    "High", "High", "High", "High",
+    "Low", "Low", "Low", "Moderate",
+    "Moderate", "High", "High", "High",
+    "Low", "High", "High", "High",
+    "Low", "High", "Low", "Moderate",
 ])
 
-risk_model = RandomForestClassifier(n_estimators=100, random_state=42)
+risk_model = RandomForestClassifier(
+    n_estimators=100,
+    random_state=42
+)
 risk_model.fit(X_TRAIN, Y_TRAIN)
 
 
-# ==================================================
-# 3. PLACES365 IMAGE MODEL
-# ==================================================
+# --------------------------------------------------
+# GENERAL HELPERS
+# --------------------------------------------------
 
-def download_file(url, destination):
-    """Download a model resource if it is not already cached."""
-    if destination.exists() and destination.stat().st_size > 0:
-        return
+def allowed_file(filename):
+    """Check whether the uploaded file has an allowed extension."""
+    return (
+        bool(filename)
+        and "." in filename
+        and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+    )
 
-    app.logger.info("Downloading %s", destination.name)
-    response = requests.get(url, timeout=(15, 120))
-    response.raise_for_status()
-
-    temporary_file = destination.with_suffix(destination.suffix + ".tmp")
-    temporary_file.write_bytes(response.content)
-    temporary_file.replace(destination)
-
-
-def load_scene_model():
-    """Load the Places365 ResNet18 scene-recognition model."""
-    import torch
-    from torchvision import models
-    global scene_model, scene_labels
-
-    if scene_model is not None and scene_labels is not None:
-        return
-
-    download_file(PLACES_MODEL_URL, MODEL_PATH)
-    download_file(PLACES_LABELS_URL, LABELS_PATH)
-
-    # Only load model files downloaded from the trusted URLs above.
-    try:
-        checkpoint = torch.load(
-            MODEL_PATH,
-            map_location=DEVICE,
-            weights_only=False,
-        )
-    except TypeError:
-        # Compatibility with older PyTorch versions.
-        checkpoint = torch.load(MODEL_PATH, map_location=DEVICE)
-
-    state_dict = checkpoint.get("state_dict", checkpoint)
-    state_dict = {
-        key.removeprefix("module."): value
-        for key, value in state_dict.items()
-    }
-
-    model = models.resnet18(weights=None)
-    model.fc = torch.nn.Linear(model.fc.in_features, 365)
-    model.load_state_dict(state_dict)
-    model.to(DEVICE)
-    model.eval()
-
-    labels_by_index = []
-    with open(LABELS_PATH, "r", encoding="utf-8") as file:
-        for line in file:
-            parts = line.strip().split()
-            if len(parts) < 2:
-                continue
-
-            try:
-                index = int(parts[-1])
-                label = " ".join(parts[:-1]).replace("_", " ")
-                labels_by_index.append((index, label))
-            except ValueError:
-                continue
-
-    labels_by_index.sort(key=lambda item: item[0])
-
-    if len(labels_by_index) != 365:
-        raise RuntimeError(
-            f"Expected 365 scene labels, but found {len(labels_by_index)}. "
-            "Check the labels file in model_cache."
-        )
-
-    scene_model = model
-    scene_labels = [label for _, label in labels_by_index]
-    app.logger.info("Places365 model loaded successfully.")
-
-
-from torchvision import transforms
-
-image_transform = transforms.Compose([
-    transforms.Resize(256),
-    transforms.CenterCrop(224),
-    transforms.ToTensor(),
-    transforms.Normalize(
-        mean=[0.485, 0.456, 0.406],
-        std=[0.229, 0.224, 0.225],
-    ),
-])
 
 def format_scene_label(label):
-    """Convert a Places365 path-like label into a readable name."""
+    """Convert a model label into a readable name."""
     cleaned = str(label).strip().replace("_", " ")
     parts = [part for part in cleaned.split("/") if part]
+
     if parts:
         cleaned = parts[-1]
+
     return cleaned.replace("-", " ").title()
 
 
 def categorize_scene(label):
-    """Group scene labels into broad environmental categories."""
+    """Group image labels into broad environmental categories."""
     text = str(label).lower()
 
     keywords = {
         "Forest": [
-            "forest", "woods", "woodland", "rainforest", "bamboo",
+            "forest", "woods", "woodland", "rainforest",
+            "bamboo", "tree"
         ],
         "Water": [
-            "lake", "river", "waterfall", "ocean", "sea", "pond",
-            "stream", "beach", "coast", "wetland", "swamp", "marsh",
-            "creek", "rainforest",
+            "lake", "river", "waterfall", "ocean", "sea",
+            "pond", "stream", "beach", "coast", "wetland",
+            "swamp", "marsh", "creek"
         ],
         "Mountain": [
-            "mountain", "hill", "valley", "cliff", "glacier",
-            "volcano", "canyon",
+            "mountain", "hill", "valley", "cliff",
+            "glacier", "volcano", "canyon"
         ],
         "Plants": [
-            "garden", "flower", "greenhouse", "meadow", "grassland",
-            "orchard", "field", "park",
+            "garden", "flower", "greenhouse", "meadow",
+            "grassland", "orchard", "field", "park",
+            "plant", "vegetation"
         ],
         "Desert": ["desert", "sand dune", "badlands"],
+        "Wildlife": [
+            "bird", "animal", "insect", "butterfly",
+            "tiger", "elephant", "wildlife", "mammal",
+            "reptile"
+        ],
         "Urban": [
-            "street", "building", "city", "downtown", "industrial",
-            "highway", "parking lot",
+            "street", "building", "city", "downtown",
+            "industrial", "highway", "parking lot"
         ],
     }
 
@@ -215,398 +135,523 @@ def categorize_scene(label):
 
 
 def get_nature_tip(category):
-    """Return a conservation tip for a broad scene category."""
+    """Return an educational conservation tip."""
     tips = {
         "Forest": (
-            "Protect trees, avoid littering, and help conserve forest habitats."
+            "Protect trees, avoid littering, and conserve "
+            "forest habitats."
         ),
         "Water": (
-            "Keep waterways clean, reduce plastic waste, and conserve water."
+            "Keep waterways clean, reduce plastic waste, "
+            "and conserve water."
         ),
         "Mountain": (
-            "Stay on marked trails and avoid disturbing fragile habitats."
+            "Stay on marked trails and avoid disturbing "
+            "fragile habitats."
         ),
         "Plants": (
-            "Protect native plants, conserve water, and care for green spaces."
+            "Protect native plants, conserve water, "
+            "and care for green spaces."
         ),
         "Desert": (
-            "Respect desert plants and wildlife, and avoid disturbing habitats."
+            "Respect desert plants and wildlife, "
+            "and protect their habitats."
+        ),
+        "Wildlife": (
+            "Observe wildlife without disturbing it "
+            "and protect natural habitats."
         ),
         "Urban": (
-            "Support urban trees, reduce waste, and keep public spaces clean."
+            "Support urban trees, reduce waste, "
+            "and keep public spaces clean."
         ),
         "Other": (
-            "Avoid littering and help protect the natural surroundings."
+            "Avoid littering and help protect "
+            "the natural surroundings."
         ),
     }
+
     return tips.get(category, tips["Other"])
 
 
+# --------------------------------------------------
+# AI NATURE SCANNER
+# Uses Hugging Face Inference API instead of local
+# PyTorch models to reduce deployment memory usage.
+# --------------------------------------------------
+
+
+# Local AI model — loaded only when the scanner is first used
+scene_classifier = None
+
+
 def predict_scene(image_path):
-    import torch
-    """Run scene recognition and return the top predictions."""
-    load_scene_model()
+    """Classify an image locally using a pretrained AI model."""
+    global scene_classifier
 
-    with Image.open(image_path) as image:
-        image = image.convert("RGB")
+    try:
+        # Load the model once, not for every uploaded image.
+        if scene_classifier is None:
+            import torch
+            from transformers import pipeline
 
-    tensor = image_transform(image).unsqueeze(0).to(DEVICE)
+            torch.set_num_threads(2)
 
-    with torch.no_grad():
-        output = scene_model(tensor)
-        probabilities = torch.softmax(output[0], dim=0)
+            scene_classifier = pipeline(
+                task="image-classification",
+                model="google/vit-base-patch16-224",
+                device=-1
+            )
 
-    count = min(5, len(scene_labels))
-    top_probs, top_indices = torch.topk(probabilities, count)
-
-    top_index = int(top_indices[0].item())
-    raw_label = scene_labels[top_index]
-    display_label = format_scene_label(raw_label)
-    confidence = float(top_probs[0].item()) * 100
-
-    alternatives = []
-    for probability, index_tensor in zip(top_probs, top_indices):
-        alternative_raw_label = scene_labels[int(index_tensor.item())]
-        alternatives.append({
-            "label": format_scene_label(alternative_raw_label),
-            "confidence": round(float(probability.item()) * 100, 2),
-        })
-
-    category = categorize_scene(raw_label)
-
-    if confidence >= 70:
-        confidence_message = (
-            "The model is relatively confident in this scene prediction."
-        )
-    elif confidence >= 40:
-        confidence_message = "Treat this scene prediction as an estimate."
-    else:
-        confidence_message = (
-            "The model has low confidence. Try a clearer image."
+        # Run inference on the uploaded image.
+        predictions = scene_classifier(
+            image_path,
+            top_k=5
         )
 
-    return {
-        "label": display_label,
-        "raw_label": raw_label,
-        "confidence": round(confidence, 2),
-        "nature_category": category,
-        "tip": get_nature_tip(category),
-        "alternatives": alternatives,
-        "confidence_message": confidence_message,
-        "note": (
-            "Places365 recognizes scene types. It does not scientifically "
-            "identify species or measure ecosystem health."
-        ),
-    }
+        if not predictions:
+            raise RuntimeError("The model returned no predictions.")
+
+        top = predictions[0]
+        raw_label = top["label"]
+        confidence = float(top["score"]) * 100
+
+        display_label = format_scene_label(raw_label)
+        category = categorize_scene(raw_label)
+
+        alternatives = [
+            {
+                "label": format_scene_label(item["label"]),
+                "confidence": round(float(item["score"]) * 100, 2)
+            }
+            for item in predictions
+        ]
+
+        if confidence >= 70:
+            confidence_message = (
+                "The model assigns a high score to this image category."
+            )
+        elif confidence >= 40:
+            confidence_message = (
+                "Treat this image classification as an estimate."
+            )
+        else:
+            confidence_message = (
+                "The model score is low. Try a clearer image."
+            )
+
+        return {
+            "label": display_label,
+            "raw_label": raw_label,
+            "confidence": round(confidence, 2),
+            "nature_category": category,
+            "tip": get_nature_tip(category),
+            "alternatives": alternatives,
+            "confidence_message": confidence_message,
+            "note": (
+                "This local AI model classifies general image categories. "
+                "It does not scientifically measure ecosystem health "
+                "or reliably identify every species."
+            )
+        }
+
+    except Exception:
+        app.logger.exception("Local image classification failed.")
+        raise
 
 
-def allowed_file(filename):
-    """Return True when the filename has an allowed image extension."""
-    return (
-        "." in filename
-        and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
-    )
 
-
-# ==================================================
-# 4. HOME PAGE
-# ==================================================
+# --------------------------------------------------
+# HOME PAGE
+# --------------------------------------------------
 
 @app.route("/")
 def home():
     return render_template("index.html")
 
 
-# ==================================================
-# 5. LAND RISK PREDICTION API
-# ==================================================
+# --------------------------------------------------
+# LAND RISK PREDICTOR
+# --------------------------------------------------
 
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
-        data = request.get_json(silent=True)
-        if not isinstance(data, dict):
-            data = request.form.to_dict()
+        data = request.get_json(silent=True) or request.form
 
-        vegetation = float(data.get("vegetation", 60))
-        rainfall = float(data.get("rainfall", 60))
-        soil_quality = float(data.get("soil_quality", 60))
-        human_activity = float(data.get("human_activity", 40))
+        vegetation = float(data.get("vegetation", 50))
+        rainfall = float(data.get("rainfall", 50))
+        soil_quality = float(data.get("soil_quality", 50))
+        human_activity = float(data.get("human_activity", 50))
 
         values = [
             vegetation,
             rainfall,
             soil_quality,
-            human_activity,
+            human_activity
         ]
-
-        if not all(np.isfinite(value) for value in values):
-            return jsonify({
-                "error": "Please enter valid numeric values.",
-            }), 400
 
         if not all(0 <= value <= 100 for value in values):
             return jsonify({
-                "error": "All values must be between 0 and 100.",
+                "success": False,
+                "error": "All input values must be between 0 and 100."
             }), 400
 
-        risk = str(risk_model.predict(np.array([values], dtype=float))[0])
+        input_data = np.array([values], dtype=float)
 
-        database.save_prediction(
-            risk=risk,
-            vegetation=vegetation,
-            rainfall=rainfall,
-            soil_quality=soil_quality,
-            human_activity=human_activity,
-        )
+        prediction = str(risk_model.predict(input_data)[0])
+        probabilities = risk_model.predict_proba(input_data)[0]
+        confidence = round(float(max(probabilities)) * 100, 2)
 
         recommendations = {
             "Low": (
-                "The selected conditions appear relatively favorable. "
-                "Continue protecting vegetation, soil, and habitats."
+                "Continue protecting vegetation, conserving water, "
+                "and monitoring the area."
             ),
-            "Medium": (
-                "Some conditions may need improvement. Protect green spaces "
-                "and reduce environmental pressure."
+            "Moderate": (
+                "Monitor the area, protect existing vegetation, "
+                "and improve soil and water management."
             ),
             "High": (
-                "The selected conditions indicate a higher demonstration risk. "
-                "Consider protecting vegetation and reducing harmful activities."
+                "Prioritize habitat protection, reduce damaging "
+                "human activities, and seek an expert assessment."
             ),
         }
 
-        return jsonify({
-            "risk": risk,
-            "prediction": risk,
-            "message": f"Estimated environmental risk: {risk}",
-            "recommendation": recommendations[risk],
+        messages = {
+            "Low": "The model estimates a relatively low land-risk level.",
+            "Moderate": "The model estimates a moderate land-risk level.",
+            "High": "The model estimates a high land-risk level.",
+        }
+
+        result = {
+            "success": True,
+            "risk": prediction,
+            "prediction": prediction,
+            "confidence": confidence,
+            "message": messages.get(prediction, ""),
+            "recommendation": recommendations.get(prediction, ""),
             "note": (
-                "This educational prototype uses synthetic training data. "
-                "It is not a scientifically validated environmental assessment."
+                "Educational demonstration only. This model uses "
+                "illustrative training data and is not scientifically "
+                "validated for real-world land assessment."
             ),
-        })
+        }
+
+        # Save the prediction when the database supports it.
+        try:
+            database.save_prediction(
+                vegetation,
+                rainfall,
+                soil_quality,
+                human_activity,
+                prediction
+            )
+        except Exception:
+            app.logger.exception(
+                "Could not save the land-risk prediction."
+            )
+
+        return jsonify(result)
 
     except (TypeError, ValueError):
         return jsonify({
-            "error": "Please provide valid numeric slider values.",
+            "success": False,
+            "error": "Please provide valid numeric values."
         }), 400
-    except Exception as error:
-        app.logger.exception("Risk prediction failed")
+
+    except Exception:
+        app.logger.exception("Land-risk prediction failed.")
         return jsonify({
-            "error": str(error),
-            "error_type": type(error).__name__,
+            "success": False,
+            "error": "Prediction failed. Please try again."
         }), 500
 
 
-# ==================================================
-# 6. ECOBOT CHAT API
-# ==================================================
+# --------------------------------------------------
+# ECOBOT
+# Rule-based environmental chatbot
+# --------------------------------------------------
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    data = request.get_json(silent=True) or {}
-    message = str(data.get("message", "")).strip()
+    data = request.get_json(silent=True) or request.form
+    message = str(data.get("message", "")).strip().lower()
 
     if not message:
         return jsonify({
-            "reply": "Please enter a question about nature.",
+            "success": False,
+            "response": "Please enter a question about the environment."
         }), 400
 
-    text = message.lower()
     responses = [
         (
             ["hello", "hi", "hey"],
-            "Hello! 🌿 I'm EcoBot. Ask me about forests, water, pollution, "
-            "recycling, wildlife, or climate change.",
+            "Hello! I am EcoBot. Ask me about forests, wildlife, "
+            "pollution, climate change, or sustainability."
         ),
         (
-            ["forest", "tree", "deforestation"],
-            "🌳 Forests provide wildlife habitats, protect soil, and store "
-            "carbon. Help protect existing forests and plant suitable native trees.",
+            ["forest", "deforestation", "trees"],
+            "Forests support biodiversity, store carbon, and help "
+            "regulate the water cycle. Protect trees and avoid "
+            "wasting paper."
         ),
         (
-            ["water", "river", "ocean", "rain"],
-            "💧 Save water, fix leaks, reduce plastic waste, and keep waterways clean.",
+            ["wildlife", "animal", "animals", "biodiversity"],
+            "Protect wildlife by preserving natural habitats, "
+            "avoiding litter, and never disturbing wild animals."
         ),
         (
             ["pollution", "plastic", "waste", "litter"],
-            "♻️ Reduce disposable products, reuse items, separate recyclables, "
-            "and dispose of waste responsibly.",
+            "Reduce pollution by reusing products, sorting waste, "
+            "avoiding single-use plastics, and disposing of rubbish "
+            "responsibly."
         ),
         (
             ["climate", "global warming", "carbon"],
-            "🌍 Saving energy, choosing lower-carbon transport, and protecting "
-            "ecosystems can help reduce environmental pressure.",
+            "Climate change is driven mainly by greenhouse gas "
+            "emissions. Saving energy, using cleaner transport, "
+            "and protecting forests can help reduce emissions."
         ),
         (
-            ["wildlife", "animal", "biodiversity", "species"],
-            "🦋 Protect natural habitats and observe wildlife without disturbing it.",
+            ["water", "river", "ocean", "lake"],
+            "Save water, avoid dumping waste into waterways, and "
+            "reduce plastic use to help protect aquatic ecosystems."
         ),
         (
-            ["plant", "garden", "flower"],
-            "🌱 Grow suitable native plants, protect pollinators, and conserve water.",
+            ["plant", "garden", "vegetation"],
+            "Grow suitable native plants, protect existing trees, "
+            "and avoid harmful chemicals that can damage local "
+            "ecosystems."
         ),
         (
-            ["recycle", "reuse", "reduce"],
-            "♻️ Reduce consumption first, reuse what you can, and recycle according "
-            "to your local recycling rules.",
+            ["sdg 15", "life on land", "sustainable development goal"],
+            "UN Sustainable Development Goal 15 focuses on "
+            "protecting terrestrial ecosystems, managing forests "
+            "sustainably, combating desertification, and halting "
+            "biodiversity loss."
         ),
         (
-            ["education", "sdg", "quality education"],
-            "📚 SDG 4 promotes inclusive and equitable quality education and "
-            "lifelong learning opportunities for everyone.",
+            ["energy", "electricity", "solar"],
+            "Switch off unused lights and devices, improve energy "
+            "efficiency, and consider renewable energy where possible."
         ),
         (
-            ["thank", "thanks"],
-            "You're welcome! 🌿 Every responsible action can help protect nature.",
+            ["thank"],
+            "You're welcome! Small, consistent actions can help "
+            "protect our planet."
         ),
     ]
 
-    reply = (
-        "I'm EcoBot. Try asking about forests, water conservation, pollution, "
-        "recycling, wildlife, climate change, or quality education."
+    response = (
+        "I can help with environmental topics such as forests, "
+        "wildlife, pollution, water conservation, climate change, "
+        "and SDG 15. Try asking me about one of these topics."
     )
 
-    for words, answer in responses:
-        if any(word in text for word in words):
-            reply = answer
+    for keywords, answer in responses:
+        if any(keyword in message for keyword in keywords):
+            response = answer
             break
 
-    return jsonify({"reply": reply})
+    return jsonify({
+        "success": True,
+        "response": response,
+        "reply": response,
+        "note": "EcoBot uses predefined keyword-based responses."
+    })
 
 
-# ==================================================
-# 7. NATURE IMAGE SCANNER API
-# ==================================================
+# --------------------------------------------------
+# NATURE SCANNER
+# --------------------------------------------------
 
 @app.route("/scan", methods=["POST"])
 def scan():
     if "image" not in request.files:
         return jsonify({
-            "error": "The image field is missing. Please select an image.",
+            "success": False,
+            "error": "Please select an image to scan."
         }), 400
 
     uploaded_file = request.files["image"]
 
     if not uploaded_file or not uploaded_file.filename:
         return jsonify({
-            "error": "Please choose an image file.",
+            "success": False,
+            "error": "Please select an image to scan."
         }), 400
 
     if not allowed_file(uploaded_file.filename):
         return jsonify({
-            "error": "Use a JPG, JPEG, PNG, or WEBP image.",
+            "success": False,
+            "error": "Unsupported image format. Use JPG, JPEG, PNG, or WEBP."
         }), 400
 
-    extension = uploaded_file.filename.rsplit(".", 1)[1].lower()
-    filename = f"{uuid.uuid4().hex}.{extension}"
-    image_path = UPLOAD_FOLDER / filename
+    unique_name = f"{uuid.uuid4().hex}.jpg"
+    image_path = UPLOAD_FOLDER / unique_name
 
     try:
-        uploaded_file.save(image_path)
-
-        # Verify the uploaded file before inference.
-        with Image.open(image_path) as image:
+        # Decode and validate the uploaded image, then save it as JPEG.
+        with Image.open(uploaded_file.stream) as image:
             image.verify()
+
+        uploaded_file.stream.seek(0)
+
+        with Image.open(uploaded_file.stream) as image:
+            image = image.convert("RGB")
+            image.thumbnail((1600, 1600))
+            image.save(image_path, format="JPEG", quality=90)
 
         result = predict_scene(str(image_path))
 
-        image_url = url_for(
+        result["success"] = True
+        result["image_url"] = url_for(
             "static",
-            filename=f"uploads/{filename}",
+            filename=f"uploads/{unique_name}"
         )
 
-        database.save_scan(
-            label=result["label"],
-            nature_category=result["nature_category"],
-            confidence=result["confidence"],
-            image_url=image_url,
-        )
+        # Store the result if the database operation is available.
+        try:
+            database.save_scan(
+                result["label"],
+                result["nature_category"],
+                result["confidence"],
+                result["image_url"]
+            )
+        except Exception:
+            app.logger.exception(
+                "Could not save the nature-scan record."
+            )
 
-        result["image_url"] = image_url
         return jsonify(result)
 
-    except (UnidentifiedImageError, OSError):
-        image_path.unlink(missing_ok=True)
+    except UnidentifiedImageError:
+        if image_path.exists():
+            image_path.unlink(missing_ok=True)
+
         return jsonify({
-            "error": "The file is not a valid or readable image.",
+            "success": False,
+            "error": "This file is not a valid image. Please upload another."
         }), 400
+
     except Exception as error:
-        app.logger.exception("Image scanning failed")
+        app.logger.exception("Nature scanner failed.")
+
+        # Remove the saved file if inference failed.
+        if image_path.exists():
+            image_path.unlink(missing_ok=True)
+
         return jsonify({
+            "success": False,
             "error": (
-                "Image scanning failed. Check the PyCharm terminal "
-                "for details."
-            ),
-            "error_type": type(error).__name__,
-        }), 500
+                "The AI scanner could not process this image. "
+                "Check the server logs and Hugging Face model availability."
+            )
+        }), 502
 
 
-# ==================================================
-# 8. DASHBOARD STATISTICS API
-# ==================================================
+# --------------------------------------------------
+# DASHBOARD STATISTICS
+# --------------------------------------------------
 
 @app.route("/dashboard-stats", methods=["GET"])
 def dashboard_stats():
+    """
+    Return dashboard data.
+
+    Update the database function name here if your database.py
+    uses a different name for retrieving statistics.
+    """
     try:
-        return jsonify(database.get_dashboard_stats())
-    except Exception:
-        app.logger.exception("Dashboard statistics failed")
+        if hasattr(database, "get_dashboard_stats"):
+            stats = database.get_dashboard_stats()
+            return jsonify(stats)
+
+        if hasattr(database, "dashboard_stats"):
+            stats = database.dashboard_stats()
+            return jsonify(stats)
+
         return jsonify({
-            "error": "Unable to load dashboard statistics.",
+            "success": True,
+            "predictions": 0,
+            "scans": 0,
+            "eco_actions": 0,
+            "note": (
+                "Dashboard statistics are not connected to a "
+                "retrieval function in database.py yet."
+            )
+        })
+
+    except Exception:
+        app.logger.exception("Dashboard statistics could not be loaded.")
+        return jsonify({
+            "success": False,
+            "error": "Could not load dashboard statistics."
         }), 500
 
 
-# ==================================================
-# 9. SAVE ECO-FRIENDLY ACTION
-# ==================================================
+# --------------------------------------------------
+# RECORD AN ECO ACTION
+# --------------------------------------------------
 
 @app.route("/dashboard-eco-action", methods=["POST"])
 def dashboard_eco_action():
+    data = request.get_json(silent=True) or request.form
+    action = str(data.get("action", "")).strip()
+
+    if not action:
+        return jsonify({
+            "success": False,
+            "error": "Please provide an eco-friendly action."
+        }), 400
+
+    if len(action) > 200:
+        return jsonify({
+            "success": False,
+            "error": "The action must be 200 characters or fewer."
+        }), 400
+
     try:
-        data = request.get_json(silent=True) or {}
-        action = str(
-            data.get("action", "Completed an eco-friendly action")
-        ).strip()
-
-        if not action:
-            action = "Completed an eco-friendly action"
-
-        if len(action) > 250:
-            return jsonify({
-                "error": "The action description must be under 250 characters.",
-            }), 400
-
         database.save_eco_action(action)
 
         return jsonify({
             "success": True,
-            "message": "Your eco-friendly action has been recorded!",
-            "stats": database.get_dashboard_stats(),
+            "message": "Your eco-friendly action has been recorded.",
+            "action": action
         })
+
     except Exception:
-        app.logger.exception("Saving eco action failed")
+        app.logger.exception("Could not save the eco action.")
         return jsonify({
-            "error": "Unable to save your eco-friendly action.",
+            "success": False,
+            "error": "Could not record the action. Please try again."
         }), 500
 
 
-# ==================================================
-# 10. ERROR HANDLERS
-# ==================================================
+# --------------------------------------------------
+# HANDLE FILES THAT EXCEED THE UPLOAD LIMIT
+# --------------------------------------------------
 
 @app.errorhandler(413)
 def file_too_large(error):
     return jsonify({
-        "error": "Image too large. Please choose an image under 5 MB.",
+        "success": False,
+        "error": "Image is too large. Please upload an image under 5 MB."
     }), 413
 
 
-# ==================================================
-# 11. START APPLICATION
-# ==================================================
+# --------------------------------------------------
+# INITIALIZE DATABASE AND START SERVER
+# --------------------------------------------------
+
+try:
+    database.init_db()
+except Exception:
+    app.logger.exception(
+        "Database initialization failed. Check database.py configuration."
+    )
+
 
 if __name__ == "__main__":
-    database.init_db()
-    app.logger.info("Starting EcoVision AI...")
     app.run(debug=True)
